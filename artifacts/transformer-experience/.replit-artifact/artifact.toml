@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Transformer — A Guided Learning Experience"
+description = "An interactive, warm science-exhibit-style introduction to Transformer networks, with an animated model walkthrough, concise explanations, an illustrative text-generation demo, and the supplied presentation PDF."
+version = "1.0.0"
+id = "artifacts/transformer-experience"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23970
+
+[services.development]
+run = "pnpm --filter @workspace/transformer-experience run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/transformer-experience", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/transformer-experience/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23970"
+BASE_PATH = "/"
