@@ -1,22 +1,5 @@
-import { type CSSProperties, useEffect, useMemo, useState } from 'react';
-
-const stages = [
-  { title: 'Input arrives', label: 'Input', text: 'A Transformer begins with a sequence of text. We will trace how a small sentence becomes a prediction.' },
-  { title: 'Text becomes tokens', label: 'Tokenization', text: 'A tokenizer splits text into tokens—often word pieces, not always whole words. Each token gets an ID.' },
-  { title: 'Tokens become vectors', label: 'Embedding', text: 'An embedding lookup maps each token ID to a learned vector: a point in a high-dimensional space.' },
-  { title: 'Position joins in', label: 'Position', text: 'Position information is added so the model can distinguish order. The original Transformer uses positional encodings.' },
-  { title: 'Three useful views', label: 'Q · K · V', text: 'Linear projections create Query, Key, and Value vectors. Queries seek; keys describe what is available; values carry information.' },
-  { title: 'Tokens exchange context', label: 'Self-attention', text: 'Each token compares its query with keys across the sequence, then combines values according to the resulting weights.' },
-  { title: 'Several views at once', label: 'Multi-head', text: 'Multiple attention heads learn different relationship patterns in parallel. Their outputs are concatenated and projected.' },
-  { title: 'A shortcut, then balance', label: 'Add & Norm', text: 'A residual path adds the input back to the sublayer output; layer normalization stabilizes the representation.' },
-  { title: 'A small network reshapes it', label: 'Feed-forward', text: 'A position-wise feed-forward network transforms each token representation independently, with the same weights at each position.' },
-  { title: 'The encoder builds context', label: 'Encoder', text: 'In the original encoder–decoder Transformer, stacked encoder layers create contextual representations of the input.' },
-  { title: 'The decoder looks ahead carefully', label: 'Decoder', text: 'A decoder uses masked self-attention so a position cannot see future output tokens, plus cross-attention to encoder output.' },
-  { title: 'Attention crosses streams', label: 'Cross-attention', text: 'In encoder–decoder models, decoder queries attend to encoder keys and values, connecting generated text to the input.' },
-  { title: 'A distribution is formed', label: 'Next-token scores', text: 'A projection produces scores over the vocabulary. Softmax turns them into probabilities for the next token.' },
-  { title: 'One token is selected', label: 'Prediction', text: 'A decoding rule selects or samples a token. That token is appended, and the next prediction can begin.' },
-  { title: 'Text emerges, one step at a time', label: 'Output', text: 'Generation repeats next-token prediction until a stopping rule is reached. The result is a sequence of newly generated tokens.' },
-];
+import { type CSSProperties, useEffect, useState } from 'react';
+import TransformerLab from './components/TransformerLab';
 
 const concepts = [
   ['Tokenization', 'Text is divided into token IDs the network can process.', 'Token boundaries depend on the tokenizer: a token may be a word, part of a word, punctuation, or whitespace.', 'token'],
@@ -33,45 +16,6 @@ const concepts = [
   ['Output prediction', 'The model scores possible next tokens.', 'A vocabulary projection gives logits; softmax can convert them to a probability distribution, then a decoding strategy chooses a token.', 'output'],
 ];
 
-const heatValues = [
-  [0.72, 0.10, 0.04, 0.03, 0.04, 0.04, 0.03],
-  [0.10, 0.62, 0.06, 0.04, 0.07, 0.04, 0.07],
-  [0.03, 0.08, 0.54, 0.15, 0.07, 0.06, 0.11],
-  [0.02, 0.05, 0.11, 0.58, 0.13, 0.04, 0.11],
-  [0.03, 0.06, 0.08, 0.16, 0.51, 0.08, 0.12],
-  [0.04, 0.43, 0.05, 0.06, 0.08, 0.24, 0.14],
-  [0.04, 0.10, 0.08, 0.07, 0.12, 0.10, 0.53],
-];
-const heatTokens = ['The', 'animal', "didn't", 'cross', 'road', 'it', 'tired'];
-
-function tokenise(value: string) {
-  return value.trim().match(/\w+|[^\w\s]/g) ?? [];
-}
-
-function StageArt({ stage, tokens, selectedQ, setSelectedQ }: { stage: number; tokens: string[]; selectedQ: number; setSelectedQ: (n: number) => void }) {
-  if (stage === 0 || stage === 1) {
-    return <div className="token-row" aria-label="Text split into tokens">{tokens.slice(0, 8).map((token, i) => <span className={`token ${stage === 0 ? '' : 'highlight'}`} key={`${token}-${i}`}>{token}</span>)}</div>;
-  }
-  if (stage === 2 || stage === 3) {
-    return <div className="vector-stack"><span className="token highlight">{tokens[0] ?? 'A'}</span><span className="vector-arrow">→</span><div className="vector" aria-label="Vector representation"><i /><i /><i /><i /><i /></div><span className="vector-arrow">+</span><div className="pos-list"><span>01</span><span>02</span><span>03</span></div></div>;
-  }
-  if (stage === 4) return <div className="qkv" aria-label="Query, key, and value projections">{['Q', 'K', 'V'].map((x) => <div key={x}><b>{x}</b><span>{x === 'Q' ? 'query' : x === 'K' ? 'key' : 'value'}</span></div>)}</div>;
-  if (stage === 5 || stage === 11) {
-    const nodes = (tokens.length ? tokens : ['A', 'sentence']).slice(0, 6);
-    return <div className="mini-network" aria-label="Interactive attention relationships">
-      <svg viewBox="0 0 320 200" role="img" aria-label="Lines connect tokens that can attend to one another">
-        {nodes.map((_, i) => nodes.map((__, j) => i !== j && ((i + j) % 3 !== 0) ? <line key={`${i}-${j}`} x1={26 + i * (268 / Math.max(1, nodes.length - 1))} y1={100 + Math.sin(i * 1.3) * 55} x2={26 + j * (268 / Math.max(1, nodes.length - 1))} y2={100 + Math.sin(j * 1.3) * 55} stroke={selectedQ === i || selectedQ === j ? '#c06b3e' : '#b7c8b7'} strokeWidth={selectedQ === i || selectedQ === j ? 2.2 : 1} opacity={selectedQ === i || selectedQ === j ? .9 : .35} /> : null))}
-      </svg>
-      <div className="network-nodes">{nodes.map((t, i) => <button type="button" key={`${t}-${i}`} onClick={() => setSelectedQ(i)} aria-pressed={selectedQ === i} aria-label={`Select token ${t}`}>{t.slice(0, 5)}</button>)}</div>
-    </div>;
-  }
-  if (stage === 6) return <div className="mini-heads">{['Head 1', 'Head 2', 'Head 3', 'Head 4'].map((x, i) => <span className="mini-head" style={{ '--tilt': `${(i - 1.5) * 4}deg` } as CSSProperties} key={x}>{x}</span>)}</div>;
-  if (stage === 7) return <div className="norm-loop"><span className="loop-node">input</span><span className="vector-arrow">＋</span><span className="loop-node">norm</span></div>;
-  if (stage === 8) return <div className="ffn" aria-label="Feed-forward neural network"><i /><i /><i /><i /><i /></div>;
-  if (stage === 9 || stage === 10) return <div className="layer-stack">{(stage === 9 ? ['Self-attention', 'Add & Norm', 'Feed-forward', 'Add & Norm'] : ['Masked attention', 'Cross-attention', 'Feed-forward', 'Add & Norm']).map((x, i) => <div className="mini-layer" key={x + i}>{x}</div>)}</div>;
-  return <div className="output-bars" aria-label="Illustrative next-token scores"><i style={{ '--h': '55%' } as CSSProperties} data-token="the" /><i style={{ '--h': '92%' } as CSSProperties} data-token="is" /><i style={{ '--h': '36%' } as CSSProperties} data-token="can" /><i style={{ '--h': '70%' } as CSSProperties} data-token="will" /></div>;
-}
-
 function ChapterVisual({ kind }: { kind: string }) {
   if (kind === 'token') return <div><div className="diagram-token"><span>Trans</span><span>form</span><span>er</span><span>!</span></div><div className="diagram-label">one possible token split</div></div>;
   if (kind === 'embed') return <div className="diagram-vector"><span className="diagram-token"><span>word</span></span><b className="vector-arrow">→</b><span className="dot-cloud">{Array.from({ length: 20 }, (_, i) => <i key={i} style={{ opacity: .35 + (i % 5) * .13 }} />)}</span><span className="diagram-label">vector space</span></div>;
@@ -87,25 +31,9 @@ function ChapterVisual({ kind }: { kind: string }) {
 }
 
 function App() {
-  const [input, setInput] = useState('I love learning.');
-  const [stage, setStage] = useState(-1);
-  const [running, setRunning] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [selectedQ, setSelectedQ] = useState(5);
-  const [heatSelection, setHeatSelection] = useState<[number, number]>([5, 1]);
   const [generated, setGenerated] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
-  const tokens = useMemo(() => tokenise(input).slice(0, 8), [input]);
   const responseTokens = ['Photosynthesis', ' is', ' the', ' process', ' by', ' which', ' plants', ' use', ' sunlight', ' to', ' make', ' food.'];
-
-  useEffect(() => {
-    if (!running) return undefined;
-    const timer = window.setTimeout(() => {
-      if (stage >= stages.length - 1) setRunning(false);
-      else setStage((current) => Math.min(stages.length - 1, current + 1));
-    }, 1450 / speed);
-    return () => window.clearTimeout(timer);
-  }, [running, stage, speed]);
 
   useEffect(() => {
     if (!isGenerating) return undefined;
@@ -113,11 +41,6 @@ function App() {
     const timer = window.setTimeout(() => setGenerated((n) => n + 1), 500);
     return () => window.clearTimeout(timer);
   }, [isGenerating, generated, responseTokens.length]);
-
-  const run = () => { setStage(0); setRunning(true); };
-  const step = () => { setRunning(false); setStage((current) => Math.min(stages.length - 1, current + 1)); };
-  const reset = () => { setRunning(false); setStage(-1); setSelectedQ(5); };
-  const selectedHeat = heatValues[heatSelection[0]][heatSelection[1]];
 
   return <main className="site">
     <div className="topline" />
@@ -133,37 +56,7 @@ function App() {
       <a className="hero-scroll" href="#model">SCROLL TO EXPLORE <span /></a>
     </section>
 
-    <section className="section model-section" id="model">
-      <div className="section-head"><div className="kicker">01 / The working model</div><h2>See the Transformer work.</h2><p className="section-intro">Run a small sentence through the main ideas. Pause anywhere, move one stage at a time, and look closely at how attention connects words.</p></div>
-      <div className="model-shell">
-        <div className="model-controls">
-          <label><span className="field-label">Your input sentence</span><input className="text-field" aria-label="Sentence to process" value={input} maxLength={100} onChange={(event) => setInput(event.target.value)} /></label>
-          <div><span className="field-label">Walkthrough controls</span><div className="control-row">
-            <button type="button" className="btn primary" onClick={run} data-testid="button-run-transformer">Run Transformer</button>
-            <button type="button" className="btn" onClick={step} data-testid="button-step">Step</button>
-            <button type="button" className="btn" onClick={() => setRunning((value) => !value)} disabled={stage < 0 || stage >= stages.length - 1} aria-pressed={running} data-testid="button-pause">{running ? 'Pause' : 'Resume'}</button>
-            <button type="button" className="btn" onClick={reset} data-testid="button-reset">Reset</button>
-            <div className="speed" aria-label="Animation speed">{[['Slow', .55], ['Normal', 1], ['Fast', 1.8]].map(([name, value]) => <button type="button" key={name as string} aria-pressed={speed === value} onClick={() => setSpeed(value as number)}>{name}</button>)}</div>
-          </div></div>
-        </div>
-        <div className="model-status" aria-live="polite"><span>{stage < 0 ? 'Ready when you are' : `Stage ${String(stage + 1).padStart(2, '0')} of ${stages.length} · ${stages[stage].label}`}</span><span>{tokens.length} input tokens</span></div>
-        <div className="progress-track" aria-label="Model progress"><div className="progress-fill" style={{ width: `${stage < 0 ? 0 : ((stage + 1) / stages.length) * 100}%` }} /></div>
-        <div className="stage-ribbon" aria-label="Transformer stages">{stages.map((item, index) => <button key={item.label} type="button" className={`stage-pill ${stage === index ? 'active' : ''} ${stage > index ? 'done' : ''}`} onClick={() => { setRunning(false); setStage(index); }} aria-current={stage === index ? 'step' : undefined}>{String(index + 1).padStart(2, '0')} {item.label}</button>)}</div>
-        <div className="stage-visual" aria-live="polite" key={stage}>
-          <div className="stage-copy"><div className="stage-index">{stage < 0 ? 'READY / INPUT' : `STAGE ${String(stage + 1).padStart(2, '0')} / ${stages[stage].label.toUpperCase()}`}</div><h3>{stage < 0 ? 'Start with a sentence.' : stages[stage].title}</h3><p>{stage < 0 ? 'Edit the text above, then run the walkthrough or choose any stage to explore it directly.' : stages[stage].text}</p></div>
-          <StageArt stage={stage < 0 ? 0 : stage} tokens={tokens} selectedQ={selectedQ} setSelectedQ={setSelectedQ} />
-        </div>
-
-        <div className="heatmap-wrap">
-          <div className="heatmap-panel"><h4>A small attention map</h4><p>Choose a row and column to inspect a query–key relationship. Brighter cells suggest stronger illustrative attention.</p>
-            <div className="heatmap" role="group" aria-label="Illustrative attention heatmap"><span />{heatTokens.map((word, i) => <span className="heat-label" key={`col-${word}`}>{word}</span>)}{heatTokens.map((word, row) => <div key={word} style={{ display: 'contents' }}><span className="heat-row-label">{word}</span>{heatValues[row].map((value, col) => <button type="button" className="heat-cell" key={`${row}-${col}`} style={{ backgroundColor: `rgba(190, 105, 55, ${.08 + value * .78})` }} aria-label={`Query ${word}, key ${heatTokens[col]}, illustrative attention ${value.toFixed(2)}`} aria-pressed={heatSelection[0] === row && heatSelection[1] === col} onClick={() => setHeatSelection([row, col])} />)}</div>)}</div>
-            <p className="caveat">Illustrative, not a trained model. These values are hand-authored to explain the interface; they are not model outputs.</p>
-          </div>
-          <aside className="inspect-panel" aria-live="polite"><h4>Relationship</h4><p>Selected cell detail</p><span className="inspect-label">Query</span><div className="inspect-value">{heatTokens[heatSelection[0]]}</div><span className="inspect-label">Key</span><div className="inspect-value">{heatTokens[heatSelection[1]]}</div><span className="inspect-label">Attention</span><div className="inspect-value">{selectedHeat.toFixed(2)}</div><span className="inspect-label">Type</span><div className="inspect-value">Illustrative value</div></aside>
-        </div>
-        <details className="math"><summary>SHOW THE MATH</summary><div className="math-body"><div className="formula">Attention(Q, K, V) =<br /><br />softmax(QKᵀ / √dₖ)V</div><div className="math-steps"><b>Q × Kᵀ</b> → similarity scores<br /><b>Scale</b> → divide by √dₖ<br /><b>Softmax</b> → attention weights<br /><b>Weighted values</b> → contextual output<br /><small>Q = query, K = key, V = value; dₖ is the key-vector dimension.</small></div></div></details>
-      </div>
-    </section>
+    <TransformerLab />
 
     <section className="section chapter-section" id="understanding">
       <div className="chapter-heading"><div><div className="kicker">02 / The parts, up close</div><h2>Understanding<br />the Transformer.</h2></div><p className="section-intro">The walkthrough showed what happens. Now, meet the pieces—and the job each one does. This exhibit follows the terminology of the accompanying Transformer Networks presentation.</p></div>
