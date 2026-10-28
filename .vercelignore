@@ -1,9 +1,0 @@
-.git
-.github
-.replit
-.replitignore
-replit.md
-artifacts/mockup-sandbox
-scripts
-node_modules
-dist
