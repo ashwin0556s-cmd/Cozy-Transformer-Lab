@@ -6,11 +6,7 @@
   "outputDirectory": "artifacts/transformer-experience/dist/public",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
